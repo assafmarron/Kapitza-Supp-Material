@@ -1,0 +1,691 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   style.css — Kapitza Pendulum Simulation
+   Aesthetic: scientific instrument / oscilloscope lab — dark, precise, phosphor
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* ── Custom properties ──────────────────────────────────────────────────────── */
+:root {
+  --bg:           #07090f;
+  --panel:        #0b1220;
+  --panel-light:  #0f1828;
+  --border:       #1b2d44;
+  --border-hi:    #2a4860;
+
+  --accent:       #00d4ff;
+  --accent-dim:   rgba(0, 212, 255, 0.18);
+  --amber:        #f59e0b;
+  --amber-dim:    rgba(245, 158, 11, 0.15);
+
+  --text:         #8cb8d0;
+  --text-dim:     #3d5a72;
+  --text-bright:  #c8dce8;
+
+  --stable:       #00d4ff;
+  --unstable:     #f59e0b;
+  --fell:         #ff5555;
+
+  --radius:       6px;
+  --radius-lg:    10px;
+
+  /* Typography */
+  --font-body:    'Trebuchet MS', Tahoma, Geneva, sans-serif;
+  --font-mono:    'Courier New', Courier, monospace;
+  --font-title:   Georgia, 'Times New Roman', serif;
+}
+
+/* ── Reset & base ────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* ── Page shell ──────────────────────────────────────────────────────────────── */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 5px 20px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(90deg, #0a1220 0%, #0d1828 100%);
+  flex-shrink: 0;
+}
+
+.header-title {
+  font-family: var(--font-title);
+  font-size: 19px;
+  font-weight: normal;
+  letter-spacing: 0.08em;
+  color: var(--text-bright);
+  white-space: nowrap;
+}
+
+.header-title span {
+  color: var(--accent);
+}
+
+.header-subtitle {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.45;
+  max-width: 640px;
+}
+
+.header-subtitle em {
+  color: var(--text);
+  font-style: normal;
+}
+
+.header-spacer { flex: 1; }
+
+/* ── View-mode toggle ────────────────────────────────────────────────────────── */
+.mode-toggle {
+  display: flex;
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.mode-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  padding: 4px 10px;
+  border: none;
+  border-right: 1px solid var(--border-hi);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+  line-height: 1;
+}
+.mode-btn:last-child { border-right: none; }
+
+.mode-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mode-btn.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* ── Status badge ────────────────────────────────────────────────────────────── */
+.status-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid;
+  transition: background 0.3s, color 0.3s, border-color 0.3s, box-shadow 0.3s;
+  white-space: nowrap;
+}
+
+.status-badge.stable {
+  background: rgba(0, 212, 255, 0.1);
+  color: var(--stable);
+  border-color: rgba(0, 212, 255, 0.4);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+}
+.status-badge.unstable {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--unstable);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.status-badge.fell {
+  background: rgba(255, 85, 85, 0.12);
+  color: var(--fell);
+  border-color: rgba(255, 85, 85, 0.4);
+  box-shadow: 0 0 10px rgba(255, 85, 85, 0.2);
+}
+
+/* ── Main layout ─────────────────────────────────────────────────────────────── */
+.main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: 0;
+}
+
+/* ── Simulation canvas panel ─────────────────────────────────────────────────── */
+.canvas-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: radial-gradient(ellipse at 50% 45%, #0c1825 0%, #06090f 100%);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+#sim-canvas {
+  width: 100%;
+  flex: 1;
+  min-height: 0;   /* required so flex shrink works inside a flex column */
+  display: block;
+}
+
+/* ── Chart splitter (draggable horizontal handle) ────────────────────────────── */
+.chart-splitter {
+  height: 6px;
+  flex-shrink: 0;
+  cursor: ns-resize;
+  background: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  z-index: 2;
+}
+.chart-splitter:hover,
+.chart-splitter.dragging {
+  background: var(--border-hi);
+}
+/* Grip pill */
+.chart-splitter::after {
+  content: '';
+  width: 38px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--border-hi);
+  pointer-events: none;
+  transition: background 0.15s;
+}
+.chart-splitter:hover::after,
+.chart-splitter.dragging::after {
+  background: rgba(0, 212, 255, 0.4);
+}
+
+/* ── Chart area (two charts side by side below the simulation) ───────────────── */
+.chart-area {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  height: 145px;     /* default; JS overrides via element.style.height */
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.chart-area canvas {
+  flex: 1;
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  background: #070d18;
+}
+
+/* Vertical divider between the two charts */
+.chart-area canvas + canvas {
+  border-left: 1px solid var(--border);
+}
+
+/* ── Display modes ───────────────────────────────────────────────────────────── */
+
+/* SIM — hide charts and splitter; sim canvas fills everything */
+#canvas-panel[data-mode="sim"] .chart-splitter,
+#canvas-panel[data-mode="sim"] .chart-area {
+  display: none;
+}
+
+/* CHARTS — hide sim canvas and splitter; chart area fills everything */
+#canvas-panel[data-mode="charts"] #sim-canvas,
+#canvas-panel[data-mode="charts"] .chart-splitter {
+  display: none;
+}
+#canvas-panel[data-mode="charts"] .chart-area {
+  flex: 1;
+  height: auto;          /* override the JS-managed pixel height */
+  flex-direction: column; /* stack charts vertically, each full-width */
+}
+/* Replace the vertical left-border divider with a horizontal top-border */
+#canvas-panel[data-mode="charts"] .chart-area canvas + canvas {
+  border-left: none;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Control panel ───────────────────────────────────────────────────────────── */
+.control-panel {
+  width: 300px;
+  flex-shrink: 0;
+  background: var(--panel);
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Subtle scrollbar */
+.control-panel::-webkit-scrollbar        { width: 4px; }
+.control-panel::-webkit-scrollbar-track  { background: transparent; }
+.control-panel::-webkit-scrollbar-thumb  { background: var(--border-hi); border-radius: 2px; }
+
+/* ── Section dividers ────────────────────────────────────────────────────────── */
+.panel-section {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-label {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+/* Row that holds the section label + reset-params button side by side */
+.section-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+/* "restore defaults" button inside the Parameters header */
+.btn-reset-params {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 4px;
+  background: var(--amber-dim);
+  color: var(--amber);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  line-height: 1;
+}
+
+.btn-reset-params:hover {
+  border-color: rgba(245, 158, 11, 0.7);
+  background: rgba(245, 158, 11, 0.2);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.2);
+}
+
+/* ── Transport buttons ───────────────────────────────────────────────────────── */
+.transport-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-icon {
+  width: auto;
+  min-width: 32px;
+  height: 20px;
+  padding: 0 10px;
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.btn-icon:hover {
+  color: var(--accent);
+  border-color: rgba(0, 212, 255, 0.5);
+  background: var(--accent-dim);
+}
+.btn-icon.active {
+  color: var(--accent);
+  border-color: rgba(0, 212, 255, 0.6);
+  background: var(--accent-dim);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.18);
+}
+
+/* ── Speed buttons ───────────────────────────────────────────────────────────── */
+.speed-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.speed-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.speed-btn {
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.speed-btn:hover {
+  color: var(--text);
+  border-color: var(--border-hi);
+}
+
+.speed-btn.active {
+  color: var(--amber);
+  border-color: rgba(245, 158, 11, 0.5);
+  background: var(--amber-dim);
+}
+
+/* SLOW button — violet when active (matches pivot chart color) */
+.speed-btn[data-speed="slow"].active {
+  color: #a78bfa;
+  border-color: rgba(167, 139, 250, 0.5);
+  background: rgba(167, 139, 250, 0.1);
+}
+
+/* ── Chart visibility chip buttons ──────────────────────────────────────── */
+.chart-vis-btn {
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.chart-vis-btn:hover {
+  color: var(--text);
+  border-color: var(--border-hi);
+}
+.chart-vis-btn.active {
+  color: var(--amber);
+  border-color: rgba(245, 158, 11, 0.5);
+  background: var(--amber-dim);
+}
+
+/* ── Environment toggle buttons (EARTH / FREE) ───────────────────────────── */
+.env-btn {
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.env-btn:hover {
+  color: var(--text);
+  border-color: var(--border-hi);
+}
+
+.env-btn.active {
+  color: var(--accent);
+  border-color: rgba(0, 212, 255, 0.50);
+  background: var(--accent-dim);
+}
+
+html[data-theme="light"] .env-btn.active {
+  border-color: rgba(0, 119, 170, 0.50);
+}
+
+/* ── Step button (▷¼) — half the height of a normal transport button ─────────── */
+.btn-step {
+  width: auto;
+  height: 20px;          /* override btn-icon's 38 px */
+  padding: 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+
+/* ── Parameter sliders ───────────────────────────────────────────────────────── */
+.param-row {
+  margin-bottom: 0;
+  padding: 11px 0;
+  border-top: 1px solid var(--border);
+}
+
+.param-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+
+.param-name {
+  font-size: 11.5px;
+  color: var(--text);
+}
+
+.param-value {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--accent);
+}
+
+.param-hint {
+  font-size: 9.5px;
+  color: var(--text-dim);
+  margin-bottom: 5px;
+  line-height: 1.4;
+  display: none; /* Assaf changed SEP-08-2026: hide slider hint captions so more sliders fit on screen */
+}
+
+/* Custom range input */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border-hi);
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #0a1828;
+  box-shadow: 0 0 6px rgba(0, 212, 255, 0.4);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.6);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #0a1828;
+  cursor: pointer;
+}
+
+
+/* ── Info / about section ────────────────────────────────────────────────────── */
+.info-section {
+  padding: 12px 16px;
+  flex: 1;
+}
+
+.info-text {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.info-text strong {
+  color: var(--text);
+  font-weight: normal;
+}
+
+.info-text .hi  { color: var(--accent); }
+.info-text .amb { color: var(--amber);  }
+
+/* ── Overlay section (force vectors toggle) ─────────────────────────────────── */
+.overlay-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.overlay-label {
+  font-size: 11.5px;
+  color: var(--text);
+  flex: 1;
+}
+
+/* ── Divider line ────────────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0;
+}
+
+/* ── Scrollbar for full panel ────────────────────────────────────────────────── */
+.control-panel { scrollbar-width: thin; scrollbar-color: var(--border-hi) transparent; }
+
+/* ── Theme toggle button ─────────────────────────────────────────────────────── */
+.theme-btn {
+  padding: 4px 7px;
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 0;   /* prevent gap below inline SVG */
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.theme-btn:hover {
+  color: var(--amber);
+  border-color: rgba(245, 158, 11, 0.5);
+  background: var(--amber-dim);
+}
+
+/* ── Light theme — variable overrides ───────────────────────────────────────── */
+html[data-theme="light"] {
+  --bg:           #f5f0e8;
+  --panel:        #ede8dc;
+  --panel-light:  #f5f1eb;
+  --border:       #c8bfae;
+  --border-hi:    #a89f8d;
+  --accent:       #0077aa;
+  --accent-dim:   rgba(0, 119, 170, 0.12);
+  --amber:        #b8700a;
+  --amber-dim:    rgba(184, 112, 10, 0.12);
+  --text:         #2e3d4f;
+  --text-dim:     #8a98a8;
+  --text-bright:  #1a2535;
+  --stable:       #0077aa;
+  --unstable:     #b8700a;
+  --fell:         #c62828;
+}
+
+/* ── Light theme — element overrides (hardcoded colours in dark rules) ───────── */
+
+html[data-theme="light"] .header {
+  background: linear-gradient(90deg, #ece5d5 0%, #f0ead8 100%);
+}
+
+html[data-theme="light"] .canvas-panel {
+  background: radial-gradient(ellipse at 50% 45%, #f2ead8 0%, #eae3cd 100%);
+}
+
+/* Slider thumb ring — white-ish to match light bg */
+html[data-theme="light"] input[type="range"]::-webkit-slider-thumb {
+  border-color: #f0ead8;
+}
+
+/* Status badge borders & backgrounds */
+html[data-theme="light"] .status-badge.stable {
+  background: rgba(0, 119, 170, 0.10);
+  border-color: rgba(0, 119, 170, 0.40);
+  box-shadow: 0 0 10px rgba(0, 119, 170, 0.15);
+}
+html[data-theme="light"] .status-badge.unstable {
+  background: rgba(184, 112, 10, 0.10);
+  border-color: rgba(184, 112, 10, 0.35);
+}
+html[data-theme="light"] .status-badge.fell {
+  background: rgba(198, 40, 40, 0.10);
+  border-color: rgba(198, 40, 40, 0.40);
+  box-shadow: 0 0 10px rgba(198, 40, 40, 0.15);
+}
+
+/* Transport / icon buttons */
+html[data-theme="light"] .btn-icon:hover {
+  border-color: rgba(0, 119, 170, 0.50);
+}
+html[data-theme="light"] .btn-icon.active {
+  border-color: rgba(0, 119, 170, 0.60);
+  box-shadow: 0 0 8px rgba(0, 119, 170, 0.18);
+}
+
+/* Speed buttons */
+html[data-theme="light"] .speed-btn.active {
+  border-color: rgba(184, 112, 10, 0.50);
+}
+html[data-theme="light"] .speed-btn[data-speed="slow"].active {
+  color: #6b46b5;
+  border-color: rgba(107, 70, 181, 0.50);
+  background: rgba(107, 70, 181, 0.08);
+}
+
+/* Restore-defaults button */
+html[data-theme="light"] .btn-reset-params {
+  border-color: rgba(184, 112, 10, 0.40);
+}
+html[data-theme="light"] .btn-reset-params:hover {
+  border-color: rgba(184, 112, 10, 0.70);
+  background: rgba(184, 112, 10, 0.20);
+  box-shadow: 0 0 8px rgba(184, 112, 10, 0.20);
+}
+
+/* Chart splitter drag handle accent */
+html[data-theme="light"] .chart-splitter:hover::after,
+html[data-theme="light"] .chart-splitter.dragging::after {
+  background: rgba(0, 119, 170, 0.40);
+}
+
+/* Theme button hover in light mode (amber reference changes) */
+html[data-theme="light"] .theme-btn:hover {
+  border-color: rgba(184, 112, 10, 0.50);
+}

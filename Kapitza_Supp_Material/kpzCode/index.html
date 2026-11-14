@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kapitza Pendulum</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <header class="header">
+    <div>
+      <h1 class="header-title">
+        <span>Kapitza</span> Pendulum
+      </h1>
+    </div>
+    <p class="header-subtitle">
+      Inverted pendulum subjected to vertical pivot oscillation  
+    </p>
+    <div class="header-spacer"></div>
+
+    <!-- View-mode selector SIM only, Graphs only, or Both-->
+    <div class="mode-toggle" role="group" aria-label="Display mode">
+      <button class="mode-btn"        data-mode="sim"    title="Simulation only">SIM</button>
+      <button class="mode-btn active" data-mode="both"   title="Simulation + Graphs">BOTH</button>
+      <button class="mode-btn"        data-mode="charts" title="Graphs only">GRAPHS</button>
+    </div>
+
+    <!-- icon set by applyTheme() in app.js; sun SVG here for no-JS fallback -->
+    <button class="theme-btn" id="btn-theme" title="Switch to light mode" aria-label="Toggle light/dark theme">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/></svg>
+    </button>
+
+    <div id="status-badge" class="status-badge stable" aria-live="polite">STABLE</div>
+  </header>
+
+  <!-- ── Main layout ─────────────────────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- Simulation canvas + chart area (vertically split, draggable) -->
+    <div class="canvas-panel" data-mode="both" id="canvas-panel">
+      <canvas id="sim-canvas"></canvas>
+
+      <!-- Draggable separator — drag up/down to resize the chart area -->
+      <div class="chart-splitter" id="chart-splitter" title="Drag to resize charts"></div>
+
+      <!-- Scrolling charts, side by side -->
+      <div class="chart-area" id="chart-area">
+        <canvas id="angle-chart"    aria-label="Rod angle chart"></canvas>
+        <canvas id="base-chart"     aria-label="Base displacement chart"></canvas>
+        <canvas id="pivot-chart"    aria-label="Pivot position chart"></canvas>
+        <canvas id="velocity-chart" aria-label="Base and pivot velocity chart"></canvas>
+        <!-- sim-vs-analytical (ODE) comparison, CLASSICAL mode only.
+             -->
+        <canvas id="ode-angle-chart" aria-label="Sim vs ODE angle chart"></canvas>
+        <canvas id="ode-accel-chart" aria-label="Sim vs ODE angular acceleration chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Control panel -->
+    <aside class="control-panel" aria-label="Simulation controls">
+
+      <!-- Transport -->
+      <div class="panel-section">
+        <div class="section-label">Simulation speed</div>
+        <div class="transport-row">
+          <button id="btn-play"  class="btn-icon" aria-label="Play simulation">▶</button>
+          <button id="btn-reset" class="btn-icon" title="Reset" aria-label="Reset simulation">↺</button>
+          <button id="btn-step"  class="btn-icon btn-step"
+                  title="Step ¼ wheel turn (T/4)" aria-label="Step one quarter period">▷¼</button>
+          <div class="speed-row">
+            <span class="speed-label">Speed</span>
+            <button class="speed-btn" data-speed="slow" title="Slow motion — 4 fps, ¼ period per frame">SLOW</button>
+            <button class="speed-btn active" data-speed="1"  title="1× speed">1×</button>
+            <button class="speed-btn"        data-speed="2"  title="2× speed">2×</button>
+            <button class="speed-btn"        data-speed="10" title="10× speed">10×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overlay toggles (independent of mode) -->
+      <div class="panel-section">
+        <div class="section-label">Overlay</div>
+        <div class="overlay-row">
+          <span class="overlay-label">Force vectors</span>
+          <button id="btn-forces" class="env-btn"
+                  title="Show labelled force arrows on the simulation (works in both EARTH and FREE modes)">Forces: off</button>
+        </div>
+        <p class="param-hint" style="margin-top:6px">
+          mg — gravity on bob &nbsp;·&nbsp; T — rod tension &nbsp;·&nbsp;
+          F↕ — rod reaction on base &nbsp;·&nbsp; k·x — spring force (EARTH only; x&nbsp;=&nbsp;y&#x5f;base).
+          Each label shows the live force magnitude in Newtons.
+        </p>
+        <div class="overlay-row">
+          <span class="overlay-label">Charts mode</span>
+          <button id="btn-chart-scroll" class="env-btn active"
+                  title="Switch charts between fixed 0–20 s window and scrolling last-20 s window">Charts: scroll</button>
+        </div>
+        <div class="overlay-row">
+          <span class="overlay-label">Show charts</span>
+          <button class="chart-vis-btn active" data-chart="angle-chart"    title="Toggle rod-angle chart">Angle</button>
+          <button class="chart-vis-btn active" data-chart="base-chart"     title="Toggle base-position chart">Base</button>
+          <button class="chart-vis-btn active" data-chart="pivot-chart"    title="Toggle pivot-position chart">Pivot</button>
+          <button class="chart-vis-btn active" data-chart="velocity-chart" title="Toggle velocity chart">Velocity</button>
+          <button class="chart-vis-btn active" data-chart="ode-angle-chart" title="Toggle sim-vs-ODE angle chart (CLASSICAL mode only)">ODE angle</button>
+          <button class="chart-vis-btn active" data-chart="ode-accel-chart" title="Toggle sim-vs-ODE angular-acceleration chart (CLASSICAL mode only)">ODE accel</button>
+        </div>
+      </div>
+
+      <!-- Experiment log — plain-download
+           approach: every run that stops downloads a summary file
+           straight to the browser's default Downloads folder, no picker,
+           no permission dialog at all. (A folder-picker via the File System
+           Access API was tried; it never surfaced a permission prompt even
+           served from localhost, root cause unresolved.) -->
+      <div class="panel-section">
+        <div class="section-label-row">
+          <span class="section-label">Experiment log</span>
+        </div>
+        <div class="overlay-row">
+          <span class="param-value">runs auto-save to your Downloads folder as kpz-run_*.txt</span>
+        </div>
+      </div>
+
+      <!-- Parameters -->
+      <div class="panel-section">
+        <div class="section-label-row">
+          <span class="section-label">Parameters</span>
+          <button id="btn-reset-params" class="btn-reset-params" title="Restore default values" aria-label="Reset parameters to defaults">restore defaults</button>
+        </div>
+
+        <!-- Environment mode -->
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Environment</span>
+          </div>
+          <p class="param-hint">
+            EARTH: base rests on a spring-supported platform — soft, recoiling base.<br>
+            FREE: base floats in space. Only the bob feels gravity; the base
+            reacts via Newton&rsquo;s third law.<br>
+            CLASSICAL: base is exactly immovable (infinite mass) — the
+            textbook Kapitza pendulum, with zero base recoil to contaminate
+            the pivot motion.
+          </p>
+          <div class="speed-row">
+            <span class="speed-label">Mode</span>
+            <button class="env-btn active" data-env="earth">EARTH</button>
+            <button class="env-btn"        data-env="free">FREE</button>
+            <button class="env-btn"        data-env="classical">CLASSICAL</button>
+          <!-- the third button reads CLASSICAL (data-env is "classical") -->
+          </div>
+        </div>
+
+        <!-- Pivot frequency -->
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Pivot frequency</span>
+            <span class="param-value" id="slider-freq-val">20.000 Hz</span>
+          </div>
+          <p class="param-hint">
+            Stability requires f &gt; ~70 Hz here.
+            Drag below that threshold to watch it fall.
+          </p>
+          <!--. The hint's ~70 Hz is the
+               threshold for the default L_rod = 1m and amplitude 0.01m. -->
+          <input type="range" id="slider-freq"
+                 min="0" max="200" step="0.01" value="20" />   
+        </div>
+
+        <!-- Pivot amplitude -->
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Pivot amplitude</span>
+            <span class="param-value" id="slider-amplitude-val">10 mm</span>
+          </div>
+          <p class="param-hint">
+            Half-stroke of the pivot&rsquo;s vertical motion (a full cycle
+            spans 4 amplitudes). Appears as <code>a</code> in the classical
+            stability formula a&middot;&omega; &ge; &radic;(2&middot;g&middot;L) &mdash;
+            larger amplitude makes the pivot easier to stabilise.
+          </p>
+          <input type="range" id="slider-amplitude"
+                 min="0.0001" max="0.10" step="0.0001" value="0.01" /> 
+        </div>
+
+        <!-- Rod length -->
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Rod length</span>
+            <span class="param-value" id="slider-rodlength-val">100.0 cm</span>
+          </div>
+          <p class="param-hint">
+            Length of the rod from pivot to bob (log scale, 1&ndash;100 cm).
+            Appears as <code>L</code> in the classical stability formula
+            a&middot;&omega; &ge; &radic;(2&middot;g&middot;L) &mdash; a longer
+            rod raises the frequency needed for stability.
+          </p>
+          <input type="range" id="slider-rodlength"
+                 min="-2" max="0" step="any" value="0" />
+          <!-- default 0 (1m), matching
+               physics.js DEFAULT_PARAMS.L_rod -->
+        </div>
+
+        <!-- Bob mass -->
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Bob mass</span>
+            <span class="param-value" id="slider-massbob-val">50 g</span>
+          </div>
+          <p class="param-hint">
+            Mass of the pendulum bob (log scale, 1 g&ndash;1 kg).
+            Scales the rod's reaction force on the base — a lighter bob
+            means less base recoil.
+          </p>
+          <input type="range" id="slider-massbob"
+                 min="-3" max="0" step="0.01" value="-1.30103" />
+        </div>
+        
+        <div id="earth-only-params">
+
+        <!-- Base mass (earth mode) -->
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Base mass</span>
+            <span class="param-value" id="slider-rigidity-val">50 kg  (rigid)</span>
+          </div>
+          <p class="param-hint">
+            Mass of the base (log scale, 50 g – 50 kg).
+            At 50 kg the base barely recoils — stability holds.
+            Drag left to reduce mass; Kapitza fails near 500 g.
+          </p>
+          <input type="range" id="slider-rigidity"
+                 min="-1.3" max="1.7" step="0.05" value="1.7" />
+        </div>
+
+        <!-- Spring constant -->
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Spring constant k</span>
+            <span class="param-value" id="slider-spring-val">1000 N/m</span>
+          </div>
+          <p class="param-hint">
+            Stiffness of the base spring (log scale).
+            Only significant when base mass is low.
+          </p>
+          <input type="range" id="slider-spring"
+                 min="1" max="4" step="0.1" value="3" />
+        </div>
+
+        </div><!-- #earth-only-params -->
+
+        <!-- Free-float params -->
+        <div id="free-only-params" style="display:none">
+
+        <!-- Base mass -->
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Base mass</span>
+            <span class="param-value" id="slider-mass-val">50 kg</span>
+          </div>
+          <p class="param-hint">
+            Mass of the free-floating base (log scale, 10 g&ndash;50 kg).
+            Heavy base barely recoils &mdash; Kapitza stabilisation holds.
+            Light base recoils strongly and can break stabilisation.
+          </p>
+          <input type="range" id="slider-mass"
+                 min="-2" max="1.7" step="0.05" value="1.7" />
+        </div>
+
+        </div><!-- #free-only-params -->
+
+        <!-- Classical (rigid base) note -->
+        <div id="classical-only-params" style="display:none">
+        <div class="param-row">
+          <p class="param-hint">
+            Base mass and spring constant are not applicable here —
+            the base is pinned exactly at rest (y_base ≡ 0). This isolates
+            the pendulum&rsquo;s response to pivot oscillation from any base
+            recoil.
+          </p>
+        </div>
+        </div><!-- #classical-only-params -->
+
+        <!-- Initial angle -->
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Initial angle</span>
+            <span class="param-value" id="slider-angle-val">1°</span>
+          </div>
+          <p class="param-hint">
+            Starting tilt of the rod from vertical.
+            Larger angles are harder to stabilise.
+          </p>
+          <input type="range" id="slider-angle"
+                 min="0" max="89" step="0.1" value="1" />
+        </div>
+
+        <!-- Stop at angle -->
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Stop at angle</span>
+            <span class="param-value" id="slider-stopangle-val">90.0°</span>
+          </div>
+          <p class="param-hint">
+            Automatically pauses the run as soon as |rod angle| reaches this
+            value, and shows the elapsed time to get there &mdash; useful for
+            timing how fast the angle grows at a given frequency. Default
+            90&deg;; 0&deg; = off (run continues indefinitely, until a
+            physics-based stop limit fires or it's paused manually).
+          </p>
+          <!-- default value 90; see
+               physics.js DEFAULT_PARAMS.stop_angle_deg -->
+          <input type="range" id="slider-stopangle"
+                 min="0" max="90" step="0.5" value="90" />
+        </div>
+
+        <!-- Run time limit — -->
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Run time limit</span>
+            <span class="param-value" id="slider-timelimit-val">20.0 s</span>
+          </div>
+          <p class="param-hint">
+            Automatically pauses the run once this much simulated time has
+            elapsed, independent of any angle-based stop. Default 20s; 0 = off.
+          </p>
+          <input type="range" id="slider-timelimit"
+                 min="0" max="600" step="1" value="20" />
+        </div>
+
+        <!-- Switch for stopping on a sim-vs-ODE mismatch -->
+        <div class="param-row">
+          <div class="overlay-row">
+            <span class="overlay-label">Stop on ODE mismatch</span>
+            <button id="btn-ode-stop" class="env-btn active"
+                    title="Whether a sim-vs-ODE mismatch stops the run (CLASSICAL mode, 1 m rod)">ODE stop: on</button>
+          </div>
+          <p class="param-hint">
+            When off, the sim-vs-ODE checks (CLASSICAL mode, 1&nbsp;m rod) no
+            longer stop the run; the ODE charts still show any difference.
+            Can be switched during a run.
+          </p>
+        </div>
+
+        <!-- History window (charts) -->
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">History window</span>
+            <span class="param-value" id="slider-history-val">25 s</span>
+          </div>
+          <p class="param-hint">
+            How much simulated time is kept for the charts. 0 s disables
+            history recording entirely (charts stay blank) &mdash; useful for
+            fast/long runs where the live charts aren&rsquo;t needed.
+          </p>
+          <input type="range" id="slider-history"
+                 min="0" max="60" step="1" value="25" />
+        </div>
+
+        <!-- Sim resolution -->
+        <div class="param-row">
+          <div class="param-header">
+            <span class="param-name">Sim steps per amplitude (SpA) for f&gt;10Hz <small style="font-size:9.5px; color:var(--text-dim)">(for f&le;10Hz SpA=50)</small></span> <!-- Ch27-Edt: label of the resolution slider -->
+            <span class="param-value" id="slider-stepsperamplitude-val">25</span> <!-- live value readout (default 25) -->
+          </div>
+          <p class="param-hint">
+            Integration steps per pivot amplitude (a quarter of the
+            oscillator cycle, so steps/cycle = 4&times; this) &mdash; sets the
+            simulation&rsquo;s time step (dt). Fixed at 50 (this slider is
+            ignored) when the pivot frequency is 10&nbsp;Hz or below, for
+            precision in the slow gravity-driven fall. Higher = more accurate but
+            slower; lower = coarser and faster, and can eventually become
+            numerically unstable.
+          </p> <!-- hint text covers steps per amplitude and the fixed low-frequency SpA -->
+          <input type="range" id="slider-stepsperamplitude"
+                 min="1" max="2500" step="1" value="25" /> <!-- slider 1-2500, default 25 -->
+        </div>
+      </div>
+
+      <div class="info-section">
+        <p class="info-text">
+          Info 
+        </p>
+      </div>
+
+    </aside>
+  </div><!-- .main -->
+</div><!-- .page -->
+
+<!-- Load modules in dependency order -->
+<script src="js/physics.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

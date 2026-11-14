@@ -1,0 +1,42 @@
+Kapitza Pendulum — Run Summary
+Saved: Thu Nov 12 2026 17:47:31 GMT+0200 (Israel Standard Time)
+
+PARAMETERS
+  mode:                     FREE
+  frequency_pivot_hz:       70.000
+  amplitude_pivot_m:        0.010000
+  L_rod_m:                  1.000000
+  stab_drive_v_m_s:         4.39823
+  stab_threshold_v_m_s:     4.42719
+  stab_threshold_freq_hz:   70.4609
+  deviation_pct:            0.654
+  stability_predicted:      FALL
+  v_hat_sim_m2_s2:          9.67245
+  v_hat_sine_ref_m2_s2:     9.67221
+  mass_bob_kg:              0.0501187
+  mass_base_kg:             50.1187234
+  angle_rod_initial_deg:    1.00
+  stop_angle_deg:           90.00
+  time_limit_s:             off
+  stop_on_ode_mismatch:     on
+  steps_per_amplitude:      200
+  steps_per_half_cycle:     400
+  history_window_s:         0
+
+RESULTS
+  status:                   target_reached
+  t_stop_s:                 10.47
+  final_angle_deg:          90.01
+  stopReason:               stop angle reached (90°)
+  swing_max_deg:            1.00
+  swing_min_deg:            1.00
+  swing_max_rate_deg_s:     
+  swing_min_rate_deg_s:     
+  swing_angle_total_deg:    0.00
+  swing_total_log_rate:     
+  angle_max_deg:            90.01
+  angle_min_deg:            0.98
+  y_base_mm:                -535.42
+  v_base_1s_mm_s:           -96.70
+  a_base_1s_m_s2:           -0.009
+  ode_mismatch_first:       not checked (CLASSICAL mode, 1 m rod only)
